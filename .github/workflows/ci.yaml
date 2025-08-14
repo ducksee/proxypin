@@ -154,9 +154,29 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Configure iOS deployment target
+        run: |
+          # 检查可用的 iOS SDK
+          echo "可用的 iOS SDK 版本:"
+          xcodebuild -showsdks | grep iphoneos || echo "未找到 iphoneos SDK"
+          
+          # 降低 iOS 部署目标到可用版本
+          echo "修改 iOS 部署目标为 12.0"
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9]*\.[0-9]*/IPHONEOS_DEPLOYMENT_TARGET = 12.0/g' ios/Runner.xcodeproj/project.pbxproj
+          
+          # 同时修改 Flutter 配置
+          echo "IPHONEOS_DEPLOYMENT_TARGET = 12.0" >> ios/Flutter/Release.xcconfig
+          
       - name: Build iOS (no signing)
         run: |
+          # 清理并重新获取依赖
+          flutter clean
+          flutter pub get
+          cd ios && pod install && cd ..
+          
+          # 构建 iOS
           flutter build ios --release --no-codesign
+          
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/
@@ -164,7 +184,6 @@ jobs:
 
       - name: Upload iOS IPA
         uses: actions/upload-artifact@v4
-        if: success()
         with:
           name: ProxyPin-iOS
           path: build/ios/iphoneos/ProxyPin-iOS.ipa
