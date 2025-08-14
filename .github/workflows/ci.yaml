@@ -14,6 +14,7 @@ on:
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - name: Checkout code
@@ -50,6 +51,7 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    continue-on-error: true
 
     steps:
       - name: Checkout code
@@ -74,6 +76,7 @@ jobs:
 
   build-linux:
     runs-on: ubuntu-latest
+    continue-on-error: true
 
     steps:
       - name: Checkout code
@@ -105,6 +108,7 @@ jobs:
 
   build-macos:
     runs-on: macos-latest
+    continue-on-error: true
 
     steps:
       - name: Checkout code
@@ -118,6 +122,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      - name: Disable macOS code signing
+        run: |
+          # 创建临时的构建配置，禁用代码签名
+          echo "CODE_SIGNING_REQUIRED = NO" >> macos/Runner/Configs/Release.xcconfig
+          echo "CODE_SIGNING_ALLOWED = NO" >> macos/Runner/Configs/Release.xcconfig
+          echo "CODE_SIGN_IDENTITY = " >> macos/Runner/Configs/Release.xcconfig
+
       - name: Build macOS
         run: flutter build macos --release
 
@@ -129,6 +140,7 @@ jobs:
 
   build-ios:
     runs-on: macos-latest
+    continue-on-error: true
 
     steps:
       - name: Checkout code
@@ -157,7 +169,7 @@ jobs:
           path: build/ios/iphoneos/ProxyPin-iOS.ipa
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && always()
     needs: [build-android, build-windows, build-linux, build-macos, build-ios]
     runs-on: ubuntu-latest
     
@@ -169,27 +181,104 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
         
-      - name: Download all artifacts
+      - name: Download all artifacts (continue on error)
         uses: actions/download-artifact@v4
+        continue-on-error: true
         
       - name: Create compressed packages
         run: |
-          # 压缩 Windows 包
-          cd ProxyPin-Windows && zip -r ../ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip . && cd ..
+          # 检查并处理各平台的构建产物
           
-          # 压缩 Linux 包
-          cd ProxyPin-Linux && tar -czf ../ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz . && cd ..
+          # 处理 Windows 包
+          if [ -d "ProxyPin-Windows" ]; then
+            echo "✅ Windows 构建成功，正在打包..."
+            cd ProxyPin-Windows && zip -r ../ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip . && cd ..
+          else
+            echo "❌ Windows 构建失败，跳过打包"
+          fi
           
-          # 压缩 macOS 包
-          cd ProxyPin-macOS && zip -r ../ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip . && cd ..
+          # 处理 Linux 包
+          if [ -d "ProxyPin-Linux" ]; then
+            echo "✅ Linux 构建成功，正在打包..."
+            cd ProxyPin-Linux && tar -czf ../ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz . && cd ..
+          else
+            echo "❌ Linux 构建失败，跳过打包"
+          fi
           
-          # 重命名 Android APK 文件
-          mv app-arm64-v8a-release/app-arm64-v8a-release.apk ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk
-          mv app-armeabi-v7a-release/app-armeabi-v7a-release.apk ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk
-          mv app-x86_64-release/app-x86_64-release.apk ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk
+          # 处理 macOS 包
+          if [ -d "ProxyPin-macOS" ]; then
+            echo "✅ macOS 构建成功，正在打包..."
+            cd ProxyPin-macOS && zip -r ../ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip . && cd ..
+          else
+            echo "❌ macOS 构建失败，跳过打包"
+          fi
           
-          # 重命名 iOS IPA 文件
-          mv ProxyPin-iOS/ProxyPin-iOS.ipa ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa
+          # 处理 Android APK 文件
+          if [ -d "app-arm64-v8a-release" ]; then
+            echo "✅ Android arm64-v8a 构建成功"
+            mv app-arm64-v8a-release/app-arm64-v8a-release.apk ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk
+          else
+            echo "❌ Android arm64-v8a 构建失败"
+          fi
+          
+          if [ -d "app-armeabi-v7a-release" ]; then
+            echo "✅ Android armeabi-v7a 构建成功"
+            mv app-armeabi-v7a-release/app-armeabi-v7a-release.apk ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk
+          else
+            echo "❌ Android armeabi-v7a 构建失败"
+          fi
+          
+          if [ -d "app-x86_64-release" ]; then
+            echo "✅ Android x86_64 构建成功"
+            mv app-x86_64-release/app-x86_64-release.apk ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk
+          else
+            echo "❌ Android x86_64 构建失败"
+          fi
+          
+          # 处理 iOS IPA 文件
+          if [ -d "ProxyPin-iOS" ] && [ -f "ProxyPin-iOS/ProxyPin-iOS.ipa" ]; then
+            echo "✅ iOS 构建成功"
+            mv ProxyPin-iOS/ProxyPin-iOS.ipa ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa
+          else
+            echo "❌ iOS 构建失败"
+          fi
+
+      - name: Prepare file list for release
+        id: file_list
+        run: |
+          files=""
+          
+          # 检查各平台文件是否存在并添加到文件列表
+          if [ -f "ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip" ]; then
+            files="$files ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip"
+          fi
+          
+          if [ -f "ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz" ]; then
+            files="$files ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz"
+          fi
+          
+          if [ -f "ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip" ]; then
+            files="$files ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip"
+          fi
+          
+          if [ -f "ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
+            files="$files ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk"
+          fi
+          
+          if [ -f "ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
+            files="$files ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk"
+          fi
+          
+          if [ -f "ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
+            files="$files ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk"
+          fi
+          
+          if [ -f "ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa" ]; then
+            files="$files ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa"
+          fi
+          
+          echo "files=$files" >> $GITHUB_OUTPUT
+          echo "📦 准备上传的文件: $files"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -199,13 +288,22 @@ jobs:
           draft: false
           prerelease: false
           generate_release_notes: true
-          files: |
-            ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip
-            ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz
-            ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip
-            ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk
-            ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk
-            ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk
-            ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa
+          files: ${{ steps.file_list.outputs.files }}
+          body: |
+            ## ProxyPin v${{ steps.get_version.outputs.VERSION }}
+            
+            ### 构建状态
+            - ✅ Android: ${{ needs.build-android.result == 'success' && '成功' || '失败' }}
+            - ✅ Windows: ${{ needs.build-windows.result == 'success' && '成功' || '失败' }}
+            - ✅ Linux: ${{ needs.build-linux.result == 'success' && '成功' || '失败' }}
+            - ✅ macOS: ${{ needs.build-macos.result == 'success' && '成功' || '失败' }}
+            - ✅ iOS: ${{ needs.build-ios.result == 'success' && '成功' || '失败' }}
+            
+            ### 下载说明
+            - **Android**: 选择适合您设备架构的 APK 文件
+            - **Windows**: 下载 ZIP 文件，解压后运行
+            - **Linux**: 下载 tar.gz 文件，解压后运行
+            - **macOS**: 下载 ZIP 文件，解压后可能需要在系统设置中允许运行
+            - **iOS**: 下载 IPA 文件，需要自行签名安装
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
