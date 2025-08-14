@@ -74,7 +74,7 @@ git push origin v1.2.1
 - 或者通过命令行移除隔离属性：`xattr -rd com.apple.quarantine /path/to/ProxyPin.app`
 
 ### iOS 版本  
-- iOS 构建使用模拟器目标，生成无签名的 IPA 文件
+- iOS 构建使用设备目标但禁用代码签名，生成无签名的 IPA 文件
 - 主要用于开发测试和代码分发
 - 如需在真机上运行，用户需要：
   - 使用开发者证书重新签名

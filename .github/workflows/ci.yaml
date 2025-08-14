@@ -154,42 +154,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: List available iOS simulators
+      - name: Build iOS (no signing)
         run: |
-          echo "可用的 iOS 模拟器:"
-          xcrun simctl list devices available ios
-          
-      - name: Build iOS for simulator
-        run: |
-          # 直接构建模拟器版本，避免设备签名问题
-          flutter build ios --release --simulator
-
-      - name: Create iOS IPA
-        run: |
-          # 检查构建产物路径并创建 IPA
-          if [ -d "build/ios/iphonesimulator" ]; then
-            echo "使用模拟器构建产物创建 IPA"
-            cd build/ios/iphonesimulator
-            mkdir -p Payload
-            cp -r Runner.app Payload/
-            zip -r ProxyPin-iOS.ipa Payload/
-          elif [ -d "build/ios/iphoneos" ]; then
-            echo "使用设备构建产物创建 IPA"
-            cd build/ios/iphoneos
-            mkdir -p Payload
-            cp -r Runner.app Payload/
-            zip -r ProxyPin-iOS.ipa Payload/
-          else
-            echo "未找到 iOS 构建产物"
-            exit 1
-          fi
+          flutter build ios --release --no-codesign
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r ProxyPin-iOS.ipa Payload/
 
       - name: Upload iOS IPA
         uses: actions/upload-artifact@v4
         if: success()
         with:
           name: ProxyPin-iOS
-          path: build/ios/*/ProxyPin-iOS.ipa
+          path: build/ios/iphoneos/ProxyPin-iOS.ipa
 
   release:
     if: startsWith(github.ref, 'refs/tags/v') && always()
