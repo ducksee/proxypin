@@ -58,13 +58,41 @@ git push origin v1.2.1
 
 > ⚠️ **注意**: 如果某个平台构建失败，对应的文件不会出现在 Release 中，但不影响其他平台的发布。
 
-## 手动触发构建
+## 构建触发方式
 
-除了标签触发外，还可以通过以下方式手动触发构建：
+### 1. 正式发布（推荐）
 
+通过推送版本标签触发正式发布：
+
+```bash
+git tag v1.2.1
+git push origin v1.2.1
+```
+
+- ✅ 创建 GitHub Release
+- ✅ 上传到 Release 页面
+- ✅ 生成 Release Notes
+- ✅ 文件永久保存
+
+### 2. 测试构建
+
+通过以下方式触发测试构建：
+
+**方式一：手动触发**
 1. 在 GitHub 仓库页面进入 Actions 标签
-2. 选择 "CI" workflow
+2. 选择 "CI" workflow  
 3. 点击 "Run workflow" 按钮
+
+**方式二：推送到 main 分支**
+```bash
+git push origin main
+```
+
+测试构建特点：
+- ❌ 不创建 GitHub Release
+- ✅ 上传为 Artifacts
+- ✅ 文件名包含 "test" 标识
+- ⏰ 文件保存 7 天后自动删除
 
 ## macOS 和 iOS 特别说明
 
