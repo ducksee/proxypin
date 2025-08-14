@@ -1,5 +1,9 @@
 name: CI
 
+# 添加权限配置，确保可以上传 Release 资产
+permissions:
+  contents: write
+
 on:
   push:
     branches: [ "main" ]
@@ -374,71 +378,76 @@ jobs:
       - name: Prepare file list for release
         id: file_list
         run: |
-          files=""
           file_count=0
           
           echo "🔍 准备文件列表..."
           
-          # 检查各平台文件是否存在并添加到文件列表
-          if [ -f "ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip" ]; then
-            files="$files ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip"
-            file_count=$((file_count + 1))
-            echo "✅ Windows: ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip"
-          else
-            echo "❌ Windows: ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip 不存在"
-          fi
-          
-          if [ -f "ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz" ]; then
-            files="$files ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz"
-            file_count=$((file_count + 1))
-            echo "✅ Linux: ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz"
-          else
-            echo "❌ Linux: ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz 不存在"
-          fi
-          
-          if [ -f "ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip" ]; then
-            files="$files ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip"
-            file_count=$((file_count + 1))
-            echo "✅ macOS: ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip"
-          else
-            echo "❌ macOS: ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip 不存在"
-          fi
-          
-          if [ -f "ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
-            files="$files ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk"
-            file_count=$((file_count + 1))
-            echo "✅ Android arm64-v8a: ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk"
-          else
-            echo "❌ Android arm64-v8a: ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk 不存在"
-          fi
-          
-          if [ -f "ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
-            files="$files ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk"
-            file_count=$((file_count + 1))
-            echo "✅ Android armeabi-v7a: ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk"
-          else
-            echo "❌ Android armeabi-v7a: ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk 不存在"
-          fi
-          
-          if [ -f "ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
-            files="$files ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk"
-            file_count=$((file_count + 1))
-            echo "✅ Android x86_64: ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk"
-          else
-            echo "❌ Android x86_64: ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk 不存在"
-          fi
-          
-          if [ -f "ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa" ]; then
-            files="$files ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa"
-            file_count=$((file_count + 1))
-            echo "✅ iOS: ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa"
-          else
-            echo "❌ iOS: ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa 不存在"
-          fi
+          # 使用 heredoc 方式输出多行文件列表到 GITHUB_OUTPUT
+          {
+            echo "files<<EOF"
+            
+            # 检查各平台文件是否存在并添加到文件列表
+            if [ -f "ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip" ]; then
+              echo "ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip"
+              file_count=$((file_count + 1))
+              echo "✅ Windows: ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip"
+            else
+              echo "❌ Windows: ProxyPin-Windows-v${{ steps.get_version.outputs.VERSION }}.zip 不存在"
+            fi
+            
+            if [ -f "ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz" ]; then
+              echo "ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz"
+              file_count=$((file_count + 1))
+              echo "✅ Linux: ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz"
+            else
+              echo "❌ Linux: ProxyPin-Linux-v${{ steps.get_version.outputs.VERSION }}.tar.gz 不存在"
+            fi
+            
+            if [ -f "ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip" ]; then
+              echo "ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip"
+              file_count=$((file_count + 1))
+              echo "✅ macOS: ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip"
+            else
+              echo "❌ macOS: ProxyPin-macOS-v${{ steps.get_version.outputs.VERSION }}.zip 不存在"
+            fi
+            
+            if [ -f "ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
+              echo "ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk"
+              file_count=$((file_count + 1))
+              echo "✅ Android arm64-v8a: ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk"
+            else
+              echo "❌ Android arm64-v8a: ProxyPin-Android-arm64-v8a-v${{ steps.get_version.outputs.VERSION }}.apk 不存在"
+            fi
+            
+            if [ -f "ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
+              echo "ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk"
+              file_count=$((file_count + 1))
+              echo "✅ Android armeabi-v7a: ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk"
+            else
+              echo "❌ Android armeabi-v7a: ProxyPin-Android-armeabi-v7a-v${{ steps.get_version.outputs.VERSION }}.apk 不存在"
+            fi
+            
+            if [ -f "ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk" ]; then
+              echo "ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk"
+              file_count=$((file_count + 1))
+              echo "✅ Android x86_64: ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk"
+            else
+              echo "❌ Android x86_64: ProxyPin-Android-x86_64-v${{ steps.get_version.outputs.VERSION }}.apk 不存在"
+            fi
+            
+            if [ -f "ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa" ]; then
+              echo "ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa"
+              file_count=$((file_count + 1))
+              echo "✅ iOS: ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa"
+            else
+              echo "❌ iOS: ProxyPin-iOS-v${{ steps.get_version.outputs.VERSION }}.ipa 不存在"
+            fi
+            
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
           
           echo ""
           echo "📊 文件统计: 找到 $file_count 个文件"
-          echo "📦 准备上传的文件: $files"
           
           if [ $file_count -eq 0 ]; then
             echo "⚠️ 警告: 没有找到任何构建产物文件！"
@@ -446,7 +455,6 @@ jobs:
             ls -la
           fi
           
-          echo "files=$files" >> $GITHUB_OUTPUT
           echo "file_count=$file_count" >> $GITHUB_OUTPUT
 
       - name: Create Release
